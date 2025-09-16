@@ -1,5 +1,5 @@
-pymunk==6.2.1
-pygame==2.1.2
-numpy==1.23.3
-matplotlib==3.6.0
+pymunk==6.6.0
+pygame==2.5.2
+numpy==1.26.4
+matplotlib==3.8.4
 jupyter==1.0.0
