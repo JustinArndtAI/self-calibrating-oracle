@@ -1,6 +1,8 @@
 from src.simulator import Simulator
-from src.engine import CalibrationEngine # <-- Import the new engine
+from src.engine import CalibrationEngine
 import time
+import matplotlib.pyplot as plt
+import os
 
 # --- Configuration ---
 GROUND_TRUTH_FRICTION = 0.9  # The "real" hidden value we want the oracle to find.
@@ -57,8 +59,7 @@ def run_phase_2(ground_truth_final_x):
         impulse_to_apply=IMPULSE_TO_APPLY
     )
 
-    # 2. Run the calibration process. The engine's goal is to find a friction
-    #    value that results in a final position equal to ground_truth_final_x.
+    # 2. Run the calibration process.
     final_friction_guess = engine.calibrate(ground_truth_final_x)
 
     # 3. Print the results.
@@ -69,6 +70,50 @@ def run_phase_2(ground_truth_final_x):
     final_error = abs(GROUND_TRUTH_FRICTION - final_friction_guess)
     print(f"Final Error in Friction:      {final_error:.4f}")
     print("-----------------------------")
+    
+    # 4. Return the entire engine so we can access its history for plotting.
+    return engine
+
+
+def run_phase_3(engine):
+    """
+    Visualizes the calibration process by plotting the error over iterations.
+    """
+    print("\n--- Phase 3: Visualizing Calibration Convergence ---")
+    
+    history = engine.calibration_history
+    if not history:
+        print("No calibration history to plot.")
+        return
+
+    # Extract data from the history for plotting
+    iterations = [item['iteration'] for item in history]
+    errors = [item['error'] for item in history]
+
+    # Create the plot using Matplotlib
+    plt.figure(figsize=(10, 6))
+    plt.plot(iterations, errors, marker='o', linestyle='-', color='b')
+    
+    # Add titles and labels for clarity, making it suitable for the paper
+    plt.title('Calibration Convergence: Positional Error vs. Iteration')
+    plt.xlabel('Iteration Number')
+    plt.ylabel('Positional Error (units)')
+    plt.grid(True)
+    plt.xticks(iterations) # Ensure we have clean integer ticks for each iteration
+
+    # Ensure the figures directory exists inside the paper folder
+    figures_dir = 'paper/figures'
+    if not os.path.exists(figures_dir):
+        os.makedirs(figures_dir)
+        print(f"Created directory: {figures_dir}")
+        
+    # Save the plot to a file
+    plot_path = os.path.join(figures_dir, 'calibration_convergence.png')
+    plt.savefig(plot_path)
+
+    print(f"Convergence plot saved to: {plot_path}")
+    print("This plot can now be included in the LaTeX paper.")
+    print("--------------------------------------------------")
 
 
 if __name__ == "__main__":
@@ -76,7 +121,10 @@ if __name__ == "__main__":
     ground_truth_outcome = run_phase_1()
     
     # Add a small pause so it's easy to read the output
-    time.sleep(2) 
+    time.sleep(1) 
     
-    # Run Phase 2 to solve the problem
-    run_phase_2(ground_truth_outcome)
+    # Run Phase 2 to solve the problem and get the engine instance back
+    calibration_engine = run_phase_2(ground_truth_outcome)
+    
+    # Run Phase 3 to visualize the results from the engine
+    run_phase_3(calibration_engine)
