@@ -1,4 +1,5 @@
 from src.simulator import Simulator
+from src.engine import CalibrationEngine # <-- Import the new engine
 import time
 
 # --- Configuration ---
@@ -14,28 +15,23 @@ def run_phase_1():
     """
     print("--- Phase 1: Demonstrating Simulation Divergence ---")
     
-    # 1. Instantiate two separate simulation worlds.
     ground_truth_sim = Simulator(friction=GROUND_TRUTH_FRICTION)
     csm_oracle_sim = Simulator(friction=ORACLE_START_FRICTION)
     
     print(f"Ground Truth Friction: {GROUND_TRUTH_FRICTION}")
     print(f"Oracle's Initial Guess for Friction: {ORACLE_START_FRICTION}\n")
 
-    # 2. Add an identical object to the same starting position in both worlds.
     ground_truth_sim.add_dynamic_box()
     csm_oracle_sim.add_dynamic_box()
 
-    # 3. Apply the *exact same* force to both objects.
     ground_truth_sim.apply_impulse(IMPULSE_TO_APPLY)
     csm_oracle_sim.apply_impulse(IMPULSE_TO_APPLY)
 
-    # 4. Run both simulations for the same amount of time.
     print(f"Running simulations for {SIMULATION_STEPS} steps...")
     for _ in range(SIMULATION_STEPS):
         ground_truth_sim.step()
         csm_oracle_sim.step()
 
-    # 5. Get the final state (position) of the object in each world.
     ground_truth_pos = ground_truth_sim.get_object_state()
     oracle_pos = csm_oracle_sim.get_object_state()
 
@@ -45,8 +41,42 @@ def run_phase_1():
     
     error = abs(ground_truth_pos[0] - oracle_pos[0])
     print(f"\nResulting Error (Divergence): {error:.2f} units")
-    print("--------------------------------------------------")
+    print("--------------------------------------------------\n")
+    
+    # We return the "real" outcome so Phase 2 knows what to aim for.
+    return ground_truth_pos[0]
+
+
+def run_phase_2(ground_truth_final_x):
+    """
+    Uses the CalibrationEngine to find the correct friction parameter.
+    """
+    # 1. Initialize the engine with our simulation parameters.
+    engine = CalibrationEngine(
+        simulation_steps=SIMULATION_STEPS,
+        impulse_to_apply=IMPULSE_TO_APPLY
+    )
+
+    # 2. Run the calibration process. The engine's goal is to find a friction
+    #    value that results in a final position equal to ground_truth_final_x.
+    final_friction_guess = engine.calibrate(ground_truth_final_x)
+
+    # 3. Print the results.
+    print("\n--- Calibration Results ---")
+    print(f"True Friction Value was:      {GROUND_TRUTH_FRICTION:.4f}")
+    print(f"Calibrated Friction Value is: {final_friction_guess:.4f}")
+    
+    final_error = abs(GROUND_TRUTH_FRICTION - final_friction_guess)
+    print(f"Final Error in Friction:      {final_error:.4f}")
+    print("-----------------------------")
 
 
 if __name__ == "__main__":
-    run_phase_1()
+    # Run Phase 1 to see the problem
+    ground_truth_outcome = run_phase_1()
+    
+    # Add a small pause so it's easy to read the output
+    time.sleep(2) 
+    
+    # Run Phase 2 to solve the problem
+    run_phase_2(ground_truth_outcome)
